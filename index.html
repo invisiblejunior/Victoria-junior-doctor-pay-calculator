@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vic Doc Pay Calc (All HM Codes)</title>
+    <style>
+        :root { --primary: #005eb8; --bg: #f4f6f8; --card: #ffffff; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: var(--bg); color: #1c1e21; padding: 20px; max-width: 1100px; margin: 0 auto; 
+        }
+        h2 { border-bottom: 2px solid #005eb8; padding-bottom: 10px; color: #005eb8; margin-top: 0; }
+        .subtitle { font-size: 0.9em; color: #606770; margin-bottom: 20px; }
+        
+        .panel { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        select { padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; width: 100%; max-width: 500px; }
+        
+        .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .grid-container { grid-template-columns: 1fr; } }
+        
+        .week-card { background: var(--card); border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .week-header { font-weight: 700; color: var(--primary); margin-bottom: 15px; text-transform: uppercase; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+
+        .day-row { display: grid; grid-template-columns: 35px 75px 75px 50px 30px 1fr; gap: 8px; align-items: center; margin-bottom: 10px; }
+        .day-label { font-weight: 600; font-size: 14px; color: #444; }
+        
+        input[type="text"] { padding: 8px 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center; width: 100%; font-family: monospace; }
+        input[type="text"]:focus { border-color: var(--primary); outline: none; background: #e3f2fd; }
+        input[type="number"] { padding: 8px 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center; width: 100%; }
+        .training-input { background: #fffde7; border-color: #fff59d !important; }
+
+        .status-cell { display: flex; flex-wrap: wrap; gap: 4px; }
+        .badge { 
+            font-size: 10px; font-weight: 700; text-transform: uppercase; 
+            padding: 3px 6px; border-radius: 4px; color: white; white-space: nowrap;
+        }
+        
+        .bg-ord { background-color: #2e7d32; } 
+        .bg-night { background-color: #7b1fa2; } 
+        .bg-wknd { background-color: #ef6c00; } 
+        .bg-ot { background-color: #c62828; } 
+        .bg-ph { background-color: #d81b60; } 
+        .bg-flat { background-color: #455a64; } 
+        .bg-fri { background-color: #0277bd; } 
+        .bg-ph-off { background-color: #880e4f; border: 1px dashed #d81b60; }
+
+        .payslip-box { background: white; border: 1px solid #ccc; margin-top: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 750px; margin-left: auto; margin-right: auto; }
+        .payslip-head { background: #2c3e50; color: white; padding: 15px; font-weight: bold; text-align: center; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { text-align: left; background: #f8f9fa; padding: 12px; border-bottom: 2px solid #ddd; color: #555; font-size: 12px; text-transform: uppercase; }
+        td { padding: 12px; border-bottom: 1px solid #eee; }
+        td.amount { text-align: right; font-family: monospace; font-size: 15px; font-weight: 500; }
+        .total-row td { background: #f8f9fa; font-weight: bold; font-size: 16px; border-top: 2px solid #2c3e50; color: #2c3e50; }
+    </style>
+</head>
+<body>
+
+    <h2>Vic Junior Doctor Pay Calculator</h2>
+    <div class="subtitle"><strong>Includes:</strong> All HM Codes (11-30) | March 2025 Rates</div>
+
+    <div class="panel">
+        <label><strong>Select Classification:</strong></label><br>
+        <select id="roleSelector" onchange="updateUI()">
+            <optgroup label="Interns & Residents (Base 38h)">
+                <option value="HM11">Intern (HM11)</option>
+                <option value="HM12">HMO Year 2 (HM12)</option>
+                <option value="HM13">HMO Year 3 (HM13)</option>
+            </optgroup>
+            <optgroup label="Registrars (Base 43h)">
+                <option value="HM25">Registrar Yr 1 (HM25)</option>
+                <option value="HM26">Registrar Yr 2 (HM26)</option>
+                <option value="HM27">Registrar Yr 3 (HM27)</option>
+                <option value="HM28">Registrar Yr 4 (HM28)</option>
+                <option value="HM29">Registrar Yr 5 (HM29)</option>
+                <option value="HM30">Registrar Yr 6+ (HM30)</option>
+            </optgroup>
+            <optgroup label="Medical Officers (Base 38h)">
+                <option value="HM14">Medical Officer Yr 1 (HM14)</option>
+                <option value="HM15">Medical Officer Yr 2 (HM15)</option>
+                <option value="HM16">Medical Officer Yr 3 (HM16)</option>
+                <option value="HM17">Medical Officer Yr 4 (HM17)</option>
+                <option value="HM18">Medical Officer Yr 5 (HM18)</option>
+                <option value="HM19">Solely Admin (HM19)</option>
+                <option value="HM20">Medical Officer Yr 6+ (HM20)</option>
+            </optgroup>
+            <optgroup label="Senior Medical Officers (Base 38h)">
+                <option value="HM21">Senior MO Yr 1 (HM21)</option>
+                <option value="HM22">Senior MO Yr 2 (HM22)</option>
+                <option value="HM23">Senior MO Yr 3+ (HM23)</option>
+            </optgroup>
+        </select>
+        <div id="roleHint" style="margin-top:10px; font-size:13px; color:#666;"></div>
+    </div>
+
+    <div class="grid-container">
+        <div class="week-card" id="week1"></div>
+        <div class="week-card" id="week2"></div>
+    </div>
+
+    <div class="payslip-box">
+        <div class="payslip-head">ESTIMATED PAYSLIP</div>
+        <table id="payslipTable">
+            <thead>
+                <tr>
+                    <th width="50%">Pay Component</th>
+                    <th width="15%">Units</th>
+                    <th width="15%">Rate</th>
+                    <th width="20%" style="text-align:right">Total</th>
+                </tr>
+            </thead>
+            <tbody id="payslipBody"></tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td colspan="3">GROSS TOTAL</td>
+                    <td class="amount" id="grossTotal">$0.00</td>
+                </tr>
+            </tfoot>
+        </table>
+        <div style="padding:15px; font-size:12px; color:#888; text-align:center;">
+            *Rates effective 1 March 2025.<br>
+            *Includes specific shift penalties for MOs and SMOs.
+        </div>
+    </div>
+
+<script>
+    // === 1. DATA (March 2025 Rates - Appendix 2) ===
+    const RATES = {
+        // HMOs
+        HM11: { weekly: 1638.49, divisor: 38, type: "HMO", cme: 74.60 },
+        HM12: { weekly: 1742.45, divisor: 38, type: "HMO", cme: 90.90 },
+        HM13: { weekly: 1888.94, divisor: 38, type: "HMO", cme: 90.90 },
+        // Registrars
+        HM25: { weekly: 2481.70, divisor: 43, type: "REG", cme: 118.90 },
+        HM26: { weekly: 2623.33, divisor: 43, type: "REG", cme: 118.90 },
+        HM27: { weekly: 2723.30, divisor: 43, type: "REG", cme: 118.90 },
+        HM28: { weekly: 2859.75, divisor: 43, type: "REG", cme: 118.90 },
+        HM29: { weekly: 3253.02, divisor: 43, type: "REG", cme: 118.90 },
+        HM30: { weekly: 3415.81, divisor: 43, type: "REG", cme: 118.90 },
+        // Medical Officers
+        HM14: { weekly: 2305.31, divisor: 38, type: "MO", cme: 90.90 },
+        HM15: { weekly: 2450.07, divisor: 38, type: "MO", cme: 90.90 },
+        HM16: { weekly: 2593.86, divisor: 38, type: "MO", cme: 90.90 },
+        HM17: { weekly: 2738.20, divisor: 38, type: "MO", cme: 90.90 },
+        HM18: { weekly: 2882.42, divisor: 38, type: "MO", cme: 90.90 },
+        HM19: { weekly: 2882.42, divisor: 38, type: "MO", cme: 90.90 }, // Admin
+        HM20: { weekly: 3055.36, divisor: 38, type: "MO", cme: 90.90 },
+        // Senior Medical Officers
+        HM21: { weekly: 3239.63, divisor: 38, type: "SMO", cme: 90.90 },
+        HM22: { weekly: 3401.67, divisor: 38, type: "SMO", cme: 90.90 },
+        HM23: { weekly: 3571.58, divisor: 38, type: "SMO", cme: 90.90 }
+    };
+
+    // Flat Shift Penalties (Table 4.1 - March 2025)
+    const SHIFT_PENALTIES = {
+        "HMO": 40.96,
+        "MO": 57.63,
+        "REG": 62.04,
+        "SMO": 80.99
+    };
+
+    const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const MEAL_ALLOWANCE = 11.13;
+    const OT_15_CAP = 4.0; 
+    let ot15Tracker = 0; 
+
+    // === 2. INIT ===
+    function init() {
+        renderWeek('week1', 0);
+        renderWeek('week2', 7);
+        updateUI();
+    }
+
+    function renderWeek(containerId, offset) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = `
+            <div class="week-header">${offset===0 ? "Week 1" : "Week 2"}</div>
+            <div class="day-row" style="font-size:11px; color:#666; text-transform:uppercase;">
+                <span>Day</span>
+                <span>Start</span>
+                <span>Finish</span>
+                <span title="Training Hours">Train</span>
+                <span>PH?</span>
+                <span>Status (Hours)</span>
+            </div>
+        `;
+
+        DAYS.forEach((day, index) => {
+            const i = offset + index;
+            const div = document.createElement('div');
+            div.className = 'day-row';
+            div.innerHTML = `
+                <span class="day-label">${day}</span>
+                <input type="text" id="start_${i}" placeholder="0900" onblur="formatTime(this)" onchange="calculate()">
+                <input type="text" id="end_${i}" placeholder="1700" onblur="formatTime(this)" onchange="calculate()">
+                <input type="number" id="train_${i}" class="training-input" placeholder="0" tabindex="-1" min="0" max="10" step="0.5" onchange="calculate()">
+                <input type="checkbox" id="ph_${i}" tabindex="-1" onchange="calculate()">
+                <div id="status_${i}" class="status-cell"></div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function updateUI() {
+        const roleKey = document.getElementById('roleSelector').value;
+        const r = RATES[roleKey];
+        const hint = document.getElementById('roleHint');
+        
+        if (r.divisor === 43) {
+            hint.innerHTML = `<strong>${roleKey}</strong>: Base pays 43 hours/week.`;
+            document.querySelectorAll('.training-input').forEach(el => el.disabled = false);
+        } else {
+            hint.innerHTML = `<strong>${roleKey}</strong>: Base pays 38 hours/week.`;
+            document.querySelectorAll('.training-input').forEach(el => {
+                el.disabled = true;
+                el.value = '';
+            });
+        }
+        calculate();
+    }
+
+    function formatTime(input) {
+        let val = input.value.replace(/[^0-9]/g, '');
+        if (!val) return;
+        if (val.length <= 2) {
+            if (parseInt(val) < 10) val = "0" + parseInt(val);
+            input.value = val + ":00";
+        } else if (val.length >= 3) {
+            if (val.length === 3) val = "0" + val;
+            input.value = val.substring(0,2) + ":" + val.substring(2,4);
+        }
+        calculate();
+    }
+
+    // === 3. CALCULATION ENGINE ===
+    function calculate() {
+        const roleKey = document.getElementById('roleSelector').value;
+        const rateData = RATES[roleKey];
+        const hourlyRate = rateData.weekly / rateData.divisor;
+        const standardHours = rateData.divisor; 
+        const standardDay = standardHours / 5; 
+        const cmeTotal = rateData.cme * 2; 
+
+        // Determine Flat Penalty Rate Category
+        const flatPenRate = SHIFT_PENALTIES[rateData.type] || 0;
+
+        let buckets = {
+            "Ordinary":                 { total: 0, hrs: 0, displayRate: hourlyRate },
+            "Ordinary (Wknd 1.5x)":     { total: 0, hrs: 0, displayRate: hourlyRate * 1.5 },
+            "Ordinary (PH 2.5x)":       { total: 0, hrs: 0, displayRate: hourlyRate * 2.5 },
+            "PH Not Worked (1.0x)":     { total: 0, hrs: 0, displayRate: hourlyRate }, 
+            "Night Duty (1.25x)":       { total: 0, hrs: 0, displayRate: hourlyRate * 1.25 }, 
+            "Training Time":            { total: 0, hrs: 0, displayRate: hourlyRate },
+            "Fri Shift Pen (25%)":      { total: 0, hrs: 0, displayRate: hourlyRate * 0.25 }, 
+            "Shift Allowance (Flat)":   { total: 0, count: 0, displayRate: flatPenRate }, 
+            "Overtime (1.5x)":          { total: 0, hrs: 0, displayRate: hourlyRate * 1.5 },
+            "Overtime (2.0x)":          { total: 0, hrs: 0, displayRate: hourlyRate * 2.0 },
+            "Overtime (PH 2.5x)":       { total: 0, hrs: 0, displayRate: hourlyRate * 2.5 },
+            "Meal Allowance":           { total: 0, count: 0, displayRate: MEAL_ALLOWANCE },
+            "CME Allowance":            { total: cmeTotal, count: 1, displayRate: cmeTotal }
+        };
+
+        let totalHoursAccrued = 0;
+        ot15Tracker = 0; 
+        const fortnightThreshold = standardHours * 2; 
+
+        // Clear badges
+        for(let k=0; k<14; k++) document.getElementById(`status_${k}`).innerHTML = '';
+
+        for (let i = 0; i < 14; i++) {
+            const startVal = document.getElementById(`start_${i}`).value;
+            const endVal = document.getElementById(`end_${i}`).value;
+            const trainVal = parseFloat(document.getElementById(`train_${i}`).value) || 0;
+            const isPH = document.getElementById(`ph_${i}`).checked;
+            
+            let statusCell = document.getElementById(`status_${i}`);
+            let dayStats = { ord: 0, ot: 0, night: 0, wknd: 0, friPen: 0, flatPen: 0, phOff: 0 };
+
+            if (isPH && !startVal && !endVal && trainVal === 0) {
+                let phHours = standardDay;
+                buckets["PH Not Worked (1.0x)"].hrs += phHours;
+                buckets["PH Not Worked (1.0x)"].total += (phHours * hourlyRate);
+                totalHoursAccrued += phHours;
+                dayStats.phOff = phHours;
+                renderBadges(statusCell, dayStats);
+                continue; 
+            }
+
+            if (!startVal || !endVal) {
+                if (trainVal > 0) {
+                    processSegment(i, trainVal, true, false, hourlyRate, isPH, buckets, totalHoursAccrued, fortnightThreshold, rateData.weekly, 0, 0, false, flatPenRate, dayStats);
+                    totalHoursAccrued += trainVal;
+                    renderBadges(statusCell, dayStats, trainVal);
+                }
+                continue; 
+            }
+
+            let sParts = startVal.split(':');
+            let eParts = endVal.split(':');
+            if (sParts.length !== 2 || eParts.length !== 2) continue;
+
+            let start = new Date(2000, 0, 1, sParts[0], sParts[1]);
+            let end = new Date(2000, 0, 1, eParts[0], eParts[1]);
+            let isOvernight = false;
+            if (end < start) {
+                isOvernight = true;
+                end.setDate(end.getDate() + 1);
+            }
+
+            let rawDur = (end - start) / 36e5; 
+            if (rawDur > 11) {
+                buckets["Meal Allowance"].count++;
+                buckets["Meal Allowance"].total += MEAL_ALLOWANCE;
+            }
+
+            let sHourRaw = start.getHours() + start.getMinutes()/60;
+            let eHourRaw = end.getHours() + end.getMinutes()/60;
+            if (isOvernight) eHourRaw += 24;
+            const dayNameStart = DAYS[i % 7];
+
+            let isNightDuty = false;
+            if (isOvernight) isNightDuty = true;
+            if (sHourRaw >= 0 && sHourRaw < 6.5) isNightDuty = true;
+
+            if (!isNightDuty && !isPH && ['Mon','Tue','Wed','Thu'].includes(dayNameStart)) {
+                if (eHourRaw > 18) {
+                     buckets["Shift Allowance (Flat)"].count += 1;
+                     buckets["Shift Allowance (Flat)"].total += flatPenRate;
+                     dayStats.flatPen = 1;
+                }
+            }
+
+            let segments = [];
+            if (isOvernight) {
+                let midnight = new Date(2000, 0, 2, 0, 0);
+                let part1 = (midnight - start) / 36e5;
+                let part2 = (end - midnight) / 36e5;
+                if (part1 > 0) segments.push({ dayIdx: i, hours: part1, sH: sHourRaw, eH: 24 });
+                if (part2 > 0) segments.push({ dayIdx: i + 1, hours: part2, sH: 0, eH: eHourRaw - 24 });
+            } else {
+                segments.push({ dayIdx: i, hours: rawDur, sH: sHourRaw, eH: eHourRaw });
+            }
+
+            if (trainVal > 0) segments.push({ dayIdx: i, hours: trainVal, isTraining: true });
+
+            segments.forEach(seg => {
+                let actualDayIdx = seg.dayIdx % 7; 
+                let segPH = (seg.dayIdx < 14) ? document.getElementById(`ph_${seg.dayIdx}`).checked : false;
+                processSegment(actualDayIdx, seg.hours, seg.isTraining, !seg.isTraining, hourlyRate, segPH, buckets, totalHoursAccrued, fortnightThreshold, rateData.weekly, seg.sH, seg.eH, isNightDuty, flatPenRate, dayStats);
+                totalHoursAccrued += seg.hours;
+            });
+
+            renderBadges(statusCell, dayStats);
+        }
+
+        renderPayslip(buckets, hourlyRate);
+    }
+
+    function processSegment(dayIdx, hours, isTraining, isTimeSpecific, hourlyRate, isPH, buckets, currentTotalHours, threshold, weeklyRate, sHour, eHour, isNightDuty, flatPenRate, dayStats) {
+        let hrsOrd = 0;
+        let hrsOT = 0;
+        
+        if (currentTotalHours >= threshold) hrsOT = hours;
+        else if (currentTotalHours + hours > threshold) {
+            hrsOrd = threshold - currentTotalHours;
+            hrsOT = hours - hrsOrd;
+        } else hrsOrd = hours;
+
+        if (hrsOrd > 0) {
+            if (isTraining) {
+                buckets["Training Time"].hrs += hrsOrd;
+                buckets["Training Time"].total += (hrsOrd * hourlyRate);
+            } else {
+                const dayName = DAYS[dayIdx];
+                if (isPH) {
+                    buckets["Ordinary (PH 2.5x)"].hrs += hrsOrd;
+                    buckets["Ordinary (PH 2.5x)"].total += (hrsOrd * hourlyRate * 2.5);
+                } else if (dayName === 'Sat' || dayName === 'Sun') {
+                    buckets["Ordinary (Wknd 1.5x)"].hrs += hrsOrd;
+                    buckets["Ordinary (Wknd 1.5x)"].total += (hrsOrd * hourlyRate * 1.5);
+                    dayStats.wknd += hrsOrd;
+                } else if (isNightDuty) {
+                    buckets["Night Duty (1.25x)"].hrs += hrsOrd;
+                    buckets["Night Duty (1.25x)"].total += (hrsOrd * hourlyRate * 1.25);
+                    dayStats.night += hrsOrd;
+                } else {
+                    buckets["Ordinary"].hrs += hrsOrd;
+                    buckets["Ordinary"].total += (hrsOrd * hourlyRate);
+                    dayStats.ord += hrsOrd;
+
+                    if (isTimeSpecific && dayName === 'Fri') {
+                        let pStart = Math.max(sHour, 18);
+                        let pEnd = Math.min(eHour, 24);
+                        if (pEnd > pStart) {
+                            let loadHrs = pEnd - pStart;
+                            let ratio = hrsOrd / hours; 
+                            let finalLoad = loadHrs * ratio;
+                            buckets["Fri Shift Pen (25%)"].hrs += finalLoad;
+                            buckets["Fri Shift Pen (25%)"].total += (finalLoad * hourlyRate * 0.25);
+                            dayStats.friPen += finalLoad;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (hrsOT > 0) {
+            dayStats.ot += hrsOT;
+            const dayName = DAYS[dayIdx];
+            if (isPH) {
+                buckets["Overtime (PH 2.5x)"].hrs += hrsOT;
+                buckets["Overtime (PH 2.5x)"].total += (hrsOT * hourlyRate * 2.5);
+            } else if (dayName === 'Sun') {
+                buckets["Overtime (2.0x)"].hrs += hrsOT;
+                buckets["Overtime (2.0x)"].total += (hrsOT * hourlyRate * 2.0);
+            } else {
+                let available15 = Math.max(0, OT_15_CAP - ot15Tracker);
+                let to15 = Math.min(hrsOT, available15);
+                let to20 = hrsOT - to15;
+                ot15Tracker += to15;
+
+                buckets["Overtime (1.5x)"].hrs += to15;
+                buckets["Overtime (1.5x)"].total += (to15 * hourlyRate * 1.5);
+                
+                buckets["Overtime (2.0x)"].hrs += to20;
+                buckets["Overtime (2.0x)"].total += (to20 * hourlyRate * 2.0);
+            }
+        }
+    }
+
+    function renderBadges(cell, stats, trainOnly=0) {
+        if(stats.phOff > 0) {
+             cell.innerHTML += `<span class="badge bg-ph-off">PH OFF: ${stats.phOff.toFixed(1)}h</span>`;
+             return;
+        }
+        if(trainOnly > 0) {
+            cell.innerHTML += `<span class="badge" style="background:#0277bd">TRAIN: ${trainOnly}h</span>`;
+            return;
+        }
+        if (stats.ord > 0) cell.innerHTML += `<span class="badge bg-ord">ORD: ${stats.ord.toFixed(1)}h</span>`;
+        if (stats.wknd > 0) cell.innerHTML += `<span class="badge bg-wknd">WKND: ${stats.wknd.toFixed(1)}h</span>`;
+        if (stats.night > 0) cell.innerHTML += `<span class="badge bg-night">NIGHT: ${stats.night.toFixed(1)}h</span>`;
+        if (stats.ot > 0) cell.innerHTML += `<span class="badge bg-ot">OT: ${stats.ot.toFixed(1)}h</span>`;
+        if (stats.friPen > 0) cell.innerHTML += `<span class="badge bg-fri">FRI-PEN: ${stats.friPen.toFixed(1)}h</span>`;
+        if (stats.flatPen > 0) cell.innerHTML += `<span class="badge bg-flat">FLAT PEN</span>`;
+    }
+
+    function renderPayslip(buckets, baseRate) {
+        const tbody = document.getElementById('payslipBody');
+        tbody.innerHTML = '';
+        let grandTotal = 0;
+
+        for (const [name, data] of Object.entries(buckets)) {
+            if (data.total <= 0.01) continue;
+            
+            let rateTxt = `$${data.displayRate.toFixed(2)}`;
+            let unitTxt = "";
+            if (name.includes("Meal") || name.includes("Flat") || name.includes("CME")) unitTxt = Math.round(data.count);
+            else if (data.hrs > 0) unitTxt = data.hrs.toFixed(2) + " h";
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${name}</td><td>${unitTxt}</td><td>${rateTxt}</td><td class="amount">$${data.total.toFixed(2)}</td>`;
+            tbody.appendChild(tr);
+            grandTotal += data.total;
+        }
+
+        document.getElementById('grossTotal').innerText = '$' + grandTotal.toFixed(2);
+    }
+
+    init();
+</script>
+
+</body>
+</html>
