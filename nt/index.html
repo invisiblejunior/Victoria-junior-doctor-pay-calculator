@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NT Medical Pay Calculator (Fixed Status)</title>
+    <style>
+        :root { --primary: #d35400; --bg: #fdf2e9; --card: #ffffff; --text: #2c3e50; --border: #e67e22; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: var(--bg); color: var(--text); padding: 20px; max-width: 1200px; margin: 0 auto; 
+        }
+        h2 { border-bottom: 4px solid var(--primary); padding-bottom: 12px; color: var(--primary); margin-top: 0; }
+        
+        .panel { background: var(--card); padding: 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 24px; border-left: 5px solid var(--primary); }
+        .controls-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: end; }
+        .control-group { flex: 1; min-width: 250px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #555; }
+        select, input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; background: #e0e0e0; color: #333; }
+        .btn:hover { background: #d0d0d0; }
+
+        .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+        @media (max-width: 1000px) { .grid-container { grid-template-columns: 1fr; } }
+        
+        .week-card { background: var(--card); border-radius: 10px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); border: 1px solid #eee; }
+        .week-header { font-weight: 800; color: var(--primary); margin-bottom: 12px; text-transform: uppercase; font-size: 13px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px; display: flex; justify-content: space-between; }
+
+        .day-row { display: grid; grid-template-columns: 40px 75px 75px 60px 60px 30px 1fr; gap: 8px; align-items: center; margin-bottom: 10px; }
+        .day-label { font-weight: 600; font-size: 13px; color: #444; }
+        
+        input[type="text"] { padding: 8px; border: 1px solid #ddd; border-radius: 5px; text-align: center; width: 100%; font-family: monospace; box-sizing: border-box; }
+        input[type="text"]:focus { border-color: var(--primary); background: #fffbf7; outline: none; }
+        
+        .unrost-in { background: #fff5f5; border-color: #ffcccc !important; color: #c0392b; font-weight: 600; }
+        .oncall-in { background: #fdfefe; border-color: #dbe4e8 !important; color: #2c3e50; font-size: 12px; }
+
+        /* Badges */
+        .status-cell { display: flex; flex-wrap: wrap; gap: 4px; min-height: 22px; align-items: center; }
+        .badge { font-size: 10px; font-weight: 700; padding: 3px 6px; border-radius: 4px; color: white; white-space: nowrap; letter-spacing: 0.5px; }
+        
+        .bg-ord { background-color: #95a5a6; } 
+        .bg-eve { background-color: #e67e22; }   /* Orange 15% */
+        .bg-night { background-color: #8e44ad; } /* Purple 22.5% */
+        .bg-sat { background-color: #d35400; }   /* Sat 50% */
+        .bg-sun { background-color: #c0392b; }   /* Sun 100% */
+        .bg-ph { background-color: #c2185b; }    /* PH 150% */
+        .bg-ot { background-color: #c0392b; border: 1px solid #922b21; } 
+        .bg-pda { background-color: #2980b9; }
+
+        .payslip-box { background: white; border-radius: 10px; border: 1px solid #e0e0e0; margin-top: 30px; padding: 0; overflow: hidden; }
+        .payslip-head { background: #34495e; color: white; padding: 16px 24px; font-weight: 700; display: flex; justify-content: space-between; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { text-align: left; background: #f8f9fa; padding: 12px 24px; border-bottom: 2px solid #e9ecef; color: #6c757d; font-size: 12px; text-transform: uppercase; }
+        td { padding: 12px 24px; border-bottom: 1px solid #f1f1f1; }
+        td.amount { text-align: right; font-family: monospace; font-size: 15px; font-weight: 600; }
+        .total-row td { background: #f8f9fa; font-weight: 800; font-size: 16px; border-top: 2px solid #34495e; color: #2c3e50; }
+        
+        .disclaimer { text-align:center; padding: 24px; font-size: 12px; color: #7f8c8d; margin-top: 20px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+        <div>
+            <h2>NT Medical Pay Calculator</h2>
+            <div style="font-size: 13px; color: #666;">2025 Rates | NTPS Agreement</div>
+        </div>
+        <button class="btn" onclick="clearData()">Reset</button>
+    </div>
+
+    <div class="panel">
+        <div class="controls-row">
+            <div class="control-group">
+                <label>Classification (Jan 2025)</label>
+                <select id="roleSelector" onchange="updateUI()">
+                    <option value="Intern">Intern ($90,150)</option>
+                    <option value="RMO1">RMO Year 1 ($102,781)</option>
+                    <option value="RMO2">RMO Year 2 ($109,661)</option>
+                    <option value="RMO3">RMO Year 3 ($116,306)</option>
+                    <option value="RMO4">RMO Year 4 ($122,264)</option>
+                    <option value="REG1">Registrar Yr 1 ($122,264)</option>
+                    <option value="REG2">Registrar Yr 2 ($128,154)</option>
+                    <option value="REG3">Registrar Yr 3 ($134,190)</option>
+                    <option value="REG4">Registrar Yr 4 ($140,378)</option>
+                    <option value="REG5">Registrar Yr 5 ($146,712)</option>
+                    <option value="REG6">Registrar Yr 6 ($153,195)</option>
+                    <option value="SREG1">Senior Reg Yr 1 ($166,617)</option>
+                    <option value="SREG2">Senior Reg Yr 2 ($182,143)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Professional Development</label>
+                <select id="pdaSelector" onchange="updateUI()">
+                    <option value="0">None</option>
+                    <option value="3295">Intern/RMO 1-2 ($3,295)</option>
+                    <option value="6591">RMO 3+ ($6,591)</option>
+                    <option value="9886">Registrar ($9,886)</option>
+                    <option value="13182">Senior Registrar ($13,182)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid-container">
+        <div class="week-card" id="week1"></div>
+        <div class="week-card" id="week2"></div>
+    </div>
+
+    <div class="payslip-box">
+        <div class="payslip-head">
+            <span>ESTIMATED PAYSLIP</span>
+        </div>
+        <table id="payslipTable">
+            <thead>
+                <tr>
+                    <th width="45%">Pay Component</th>
+                    <th width="15%">Units</th>
+                    <th width="15%">Rate</th>
+                    <th width="25%" style="text-align:right">Total</th>
+                </tr>
+            </thead>
+            <tbody id="payslipBody"></tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td colspan="3">GROSS TOTAL</td>
+                    <td class="amount" id="grossTotal">$0.00</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="disclaimer">
+        <strong>Unofficial Estimator | Medical Officers NT Public Sector Agreement</strong><br>
+        <strong>Penalties:</strong> Mon-Fri 18:00-00:00 (15%), 00:00-06:00 (22.5%). Sat (50%), Sun (100%).<br>
+        <strong>Overtime:</strong> First 2 hours (1.5x), After 2 hours (2.0x). Sunday/PH OT calculated separately.<br>
+        <strong>Rostered Excess:</strong> Hours >76/fortnight convert to Overtime.
+    </div>
+
+<script>
+    // === 1. DATA: NT RATES (Jan 2025) ===
+    const RATES = {
+        "Intern": 90150, "RMO1": 102781, "RMO2": 109661, "RMO3": 116306, "RMO4": 122264,
+        "REG1": 122264, "REG2": 128154, "REG3": 134190, "REG4": 140378, "REG5": 146712, "REG6": 153195,
+        "SREG1": 166617, "SREG2": 182143
+    };
+
+    const ON_CALL_RATE = 6.00; // Estimated
+    const MEAL_ALLOWANCE = 27.00; 
+    const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    // === 2. INIT & STORAGE ===
+    function init() {
+        renderWeek('week1', 0);
+        renderWeek('week2', 7);
+        loadData();
+    }
+
+    function saveData() {
+        const data = {
+            role: document.getElementById('roleSelector').value,
+            pda: document.getElementById('pdaSelector').value,
+            days: []
+        };
+        for (let i = 0; i < 14; i++) {
+            data.days.push({
+                start: document.getElementById(`start_${i}`).value,
+                end: document.getElementById(`end_${i}`).value,
+                unrost: document.getElementById(`unrost_${i}`).value,
+                oncall: document.getElementById(`oncall_${i}`).value,
+                ph: document.getElementById(`ph_${i}`).checked
+            });
+        }
+        localStorage.setItem('ntDocCalc2025_Final', JSON.stringify(data));
+    }
+
+    function loadData() {
+        const raw = localStorage.getItem('ntDocCalc2025_Final');
+        if (!raw) { updateUI(); return; }
+        try {
+            const data = JSON.parse(raw);
+            if (data.role) document.getElementById('roleSelector').value = data.role;
+            if (data.pda) document.getElementById('pdaSelector').value = data.pda;
+            
+            if (data.days) {
+                data.days.forEach((day, i) => {
+                    document.getElementById(`start_${i}`).value = day.start || '';
+                    document.getElementById(`end_${i}`).value = day.end || '';
+                    document.getElementById(`unrost_${i}`).value = day.unrost || '';
+                    document.getElementById(`oncall_${i}`).value = day.oncall || '';
+                    document.getElementById(`ph_${i}`).checked = day.ph || false;
+                });
+            }
+            updateUI();
+        } catch (e) { console.error(e); }
+    }
+
+    function clearData() {
+        if(confirm("Clear all data?")) {
+            localStorage.removeItem('ntDocCalc2025_Final');
+            location.reload();
+        }
+    }
+
+    function renderWeek(containerId, offset) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = `
+            <div class="week-header">
+                <span>${offset===0 ? "Week 1" : "Week 2"}</span>
+                <span>76h Fortnightly Cap</span>
+            </div>
+            <div class="day-row header-labels">
+                <span>Day</span>
+                <span>Start</span>
+                <span>Finish</span>
+                <span title="Unrostered Overtime">U.OT</span>
+                <span title="Hours On Call">OC (h)</span>
+                <span>PH</span>
+                <span>Status</span>
+            </div>
+        `;
+
+        DAYS.forEach((day, index) => {
+            const i = offset + index;
+            const div = document.createElement('div');
+            div.className = 'day-row';
+            
+            const tabIdxStart = (i * 2) + 1;
+            const tabIdxEnd = (i * 2) + 2;
+
+            div.innerHTML = `
+                <span class="day-label">${day}</span>
+                <input type="text" id="start_${i}" placeholder="0800" tabindex="${tabIdxStart}" onblur="formatTime(this)" onchange="calculate()">
+                <input type="text" id="end_${i}" placeholder="1630" tabindex="${tabIdxEnd}" onblur="formatTime(this)" onchange="calculate()">
+                <input type="number" id="unrost_${i}" class="unrost-in" placeholder="" tabindex="-1" min="0" max="24" step="0.5" onchange="calculate()">
+                <input type="number" id="oncall_${i}" class="oncall-in" placeholder="" tabindex="-1" min="0" max="24" step="0.5" onchange="calculate()">
+                <input type="checkbox" id="ph_${i}" tabindex="-1" onchange="calculate()">
+                <div id="status_${i}" class="status-cell"></div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    // Auto-Correct Time Format
+    function formatTime(input) {
+        let val = input.value.replace(/[^0-9]/g, '');
+        if (!val) return;
+        
+        // Handle shorthand
+        if (val.length === 1) val = "0" + val + "00";
+        if (val.length === 2) val = val + "00";
+        if (val.length === 3) val = "0" + val;
+        
+        if (val.length >= 4) {
+            input.value = val.substring(0,2) + ":" + val.substring(2,4);
+        }
+        calculate();
+    }
+
+    function updateUI() { calculate(); }
+
+    // === 3. CALCULATION ENGINE ===
+    function calculate() {
+        saveData();
+        
+        const roleKey = document.getElementById('roleSelector').value;
+        const pdaAnnual = parseFloat(document.getElementById('pdaSelector').value) || 0;
+        
+        const annualBase = RATES[roleKey];
+        const weeklyBase = annualBase / 52.1666;
+        const hourlyRate = weeklyBase / 38; 
+        const pdaFortnightly = pdaAnnual / 26.08; 
+
+        let buckets = {
+            "Ordinary":             { hrs: 0, rate: hourlyRate, total: 0, css: "bg-ord" },
+            "Penalty (Eve 15%)":    { hrs: 0, rate: hourlyRate * 0.15, total: 0, css: "bg-eve" },
+            "Penalty (Night 22.5%)":{ hrs: 0, rate: hourlyRate * 0.225, total: 0, css: "bg-night" },
+            "Penalty (Sat 50%)":    { hrs: 0, rate: hourlyRate * 0.50, total: 0, css: "bg-sat" },
+            "Penalty (Sun 100%)":   { hrs: 0, rate: hourlyRate * 1.00, total: 0, css: "bg-sun" },
+            "Penalty (PH 150%)":    { hrs: 0, rate: hourlyRate * 1.50, total: 0, css: "bg-ph" },
+            "Overtime (1.5x)":      { hrs: 0, rate: hourlyRate * 1.50, total: 0, css: "bg-ot" },
+            "Overtime (2.0x)":      { hrs: 0, rate: hourlyRate * 2.00, total: 0, css: "bg-ot" },
+            "Overtime (2.5x)":      { hrs: 0, rate: hourlyRate * 2.50, total: 0, css: "bg-ot" },
+            "On Call Allowance":    { hrs: 0, rate: ON_CALL_RATE, total: 0, css: "bg-ord" },
+            "Meal Allowance":       { count: 0, rate: MEAL_ALLOWANCE, total: 0, css: "bg-ord" },
+            "PDA":                  { count: 1, rate: pdaFortnightly, total: pdaFortnightly, css: "bg-pda" }
+        };
+
+        for(let k=0; k<14; k++) document.getElementById(`status_${k}`).innerHTML = '';
+        let dayBadges = Array(14).fill(null).map(() => new Set());
+
+        let segments = [];
+        let cumulativeOrd = 0; 
+
+        // 1. Gather all segments
+        for (let i = 0; i < 14; i++) {
+            const sVal = document.getElementById(`start_${i}`).value;
+            const eVal = document.getElementById(`end_${i}`).value;
+            const uOT = parseFloat(document.getElementById(`unrost_${i}`).value) || 0;
+            const ocHrs = parseFloat(document.getElementById(`oncall_${i}`).value) || 0;
+            const isPH = document.getElementById(`ph_${i}`).checked;
+            
+            if (ocHrs > 0) addToBucket("On Call Allowance", ocHrs, ON_CALL_RATE);
+
+            // Rostered
+            if (sVal && eVal) {
+                let sParts = sVal.split(':');
+                let eParts = eVal.split(':');
+                let start = new Date(2000, 0, 1, sParts[0], sParts[1]);
+                let end = new Date(2000, 0, 1, eParts[0], eParts[1]);
+                if (end < start) end.setDate(end.getDate() + 1);
+                
+                let sH = start.getHours() + start.getMinutes()/60;
+                let eH = end.getHours() + end.getMinutes()/60;
+                if (end.getDate() > 1) eH += 24;
+
+                let dur = eH - sH;
+                if (dur > 10) {
+                    buckets["Meal Allowance"].count++;
+                    buckets["Meal Allowance"].total += MEAL_ALLOWANCE;
+                }
+
+                if (end.getDate() > 1) {
+                    let pre = 24 - sH;
+                    let post = eH - 24;
+                    segments.push({ dayIdx: i, hrs: pre, s: sH, e: 24, type: 'rost', isPH: isPH });
+                    let nextPH = document.getElementById(`ph_${i+1}`) ? document.getElementById(`ph_${i+1}`).checked : false;
+                    segments.push({ dayIdx: i+1, hrs: post, s: 0, e: post, type: 'rost', isPH: nextPH });
+                } else {
+                    segments.push({ dayIdx: i, hrs: dur, s: sH, e: eH, type: 'rost', isPH: isPH });
+                }
+            }
+
+            // Unrostered
+            if (uOT > 0) {
+                segments.push({ dayIdx: i, hrs: uOT, type: 'unrost', isPH: isPH });
+            }
+        }
+
+        // Sort chronological
+        segments.sort((a,b) => (a.dayIdx - b.dayIdx) || (a.s - b.s));
+
+        // 2. Process Calculation
+        segments.forEach(seg => {
+            let i = seg.dayIdx;
+            let dayName = DAYS[i % 7];
+            
+            // Logic: Unrostered is OT. Rostered is Ordinary up to 76h.
+            
+            if (seg.type === 'unrost') {
+                processOvertime(seg.hrs, seg, dayName, i);
+            } else {
+                // Rostered (Ordinary up to 76h)
+                if (cumulativeOrd >= 76) {
+                    // Cap Reached -> Treated as OT
+                    processOvertime(seg.hrs, seg, dayName, i);
+                } else if (cumulativeOrd + seg.hrs > 76) {
+                    // Split
+                    let ordPart = 76 - cumulativeOrd;
+                    let otPart = seg.hrs - ordPart;
+                    processOrdinary(ordPart, seg, dayName, i);
+                    processOvertime(otPart, seg, dayName, i);
+                    cumulativeOrd += ordPart;
+                } else {
+                    processOrdinary(seg.hrs, seg, dayName, i);
+                    cumulativeOrd += seg.hrs;
+                }
+            }
+        });
+
+        function processOrdinary(hrs, seg, dayName, i) {
+            // Base Ordinary Rate
+            addToBucket("Ordinary", hrs, hourlyRate);
+            
+            // Penalties
+            if (seg.isPH) {
+                addToBucket("Penalty (PH 150%)", hrs, hourlyRate * 1.50);
+                addBadge(i, "PH +150%", "bg-ph", dayBadges);
+                return;
+            }
+            
+            if (dayName === 'Sun') {
+                addToBucket("Penalty (Sun 100%)", hrs, hourlyRate * 1.00);
+                addBadge(i, "Sun +100%", "bg-sun", dayBadges);
+                return;
+            }
+            
+            if (dayName === 'Sat') {
+                addToBucket("Penalty (Sat 50%)", hrs, hourlyRate * 0.50);
+                addBadge(i, "Sat +50%", "bg-sat", dayBadges);
+                return;
+            }
+            
+            // Mon-Fri Time-Based Penalties
+            let s = seg.s;
+            let e = seg.e;
+            
+            let eveStart = Math.max(s, 18);
+            let eveEnd = Math.min(e, 24);
+            let eveHrs = Math.max(0, eveEnd - eveStart);
+            
+            let nightStart = Math.max(s, 0);
+            let nightEnd = Math.min(e, 6);
+            let nightHrs = Math.max(0, nightEnd - nightStart);
+            
+            let totalSeg = (seg.e - seg.s) || hrs;
+            let ratio = hrs / totalSeg;
+            
+            if (eveHrs > 0) {
+                addToBucket("Penalty (Eve 15%)", eveHrs * ratio, hourlyRate * 0.15);
+                addBadge(i, "Eve 15%", "bg-eve", dayBadges);
+            }
+            if (nightHrs > 0) {
+                addToBucket("Penalty (Night 22.5%)", nightHrs * ratio, hourlyRate * 0.225);
+                addBadge(i, "Night 22.5%", "bg-night", dayBadges);
+            }
+        }
+
+        function processOvertime(hrs, seg, dayName, i) {
+            let bucketName = "Overtime (1.5x)";
+            let rateMult = 1.5;
+            let badge = "OT 1.5x";
+            
+            if (seg.isPH) {
+                rateMult = 2.5; bucketName = "Overtime (2.5x)"; badge = "OT 2.5x";
+                addToBucket(bucketName, hrs, hourlyRate * rateMult);
+                addBadge(i, badge, "bg-ot", dayBadges);
+            } else if (dayName === 'Sun' || dayName === 'Sat') {
+                rateMult = 2.0; bucketName = "Overtime (2.0x)"; badge = "OT 2.0x";
+                addToBucket(bucketName, hrs, hourlyRate * rateMult);
+                addBadge(i, badge, "bg-ot", dayBadges);
+            } else {
+                // Weekday OT: First 2h @ 1.5x, Then 2.0x
+                let ot15 = Math.min(hrs, 2);
+                let ot20 = hrs - ot15;
+                
+                if (ot15 > 0) addToBucket("Overtime (1.5x)", ot15, hourlyRate * 1.5);
+                if (ot20 > 0) {
+                    addToBucket("Overtime (2.0x)", ot20, hourlyRate * 2.0);
+                    addBadge(i, "OT 2.0x", "bg-ot", dayBadges);
+                }
+                addBadge(i, "OT 1.5x", "bg-ot", dayBadges);
+            }
+        }
+
+        // Helper: Multiplies Rate by Hours
+        function addToBucket(name, hrs, val) {
+            buckets[name].hrs += hrs;
+            buckets[name].total += (hrs * val); 
+        }
+
+        function addBadge(dayIdx, text, css, setArray) {
+            if (!setArray[dayIdx].has(text)) {
+                setArray[dayIdx].add(text);
+                let cell = document.getElementById(`status_${dayIdx}`);
+                cell.innerHTML += `<span class="badge ${css}">${text}</span> `;
+            }
+        }
+        
+        function getBadgeCss(txt) {
+            if(txt.includes("OT")) return "bg-ot";
+            if(txt.includes("PH")) return "bg-ph";
+            if(txt.includes("Sun")) return "bg-sun";
+            if(txt.includes("Sat")) return "bg-sat";
+            if(txt.includes("Night")) return "bg-night";
+            if(txt.includes("Eve")) return "bg-eve";
+            return "bg-ord";
+        }
+
+        renderPayslip(buckets);
+    }
+
+    function renderPayslip(buckets) {
+        const tbody = document.getElementById('payslipBody');
+        tbody.innerHTML = '';
+        let grandTotal = 0;
+
+        for (const [name, data] of Object.entries(buckets)) {
+            if (data.total < 0.01) continue;
+
+            let unitTxt = data.hrs > 0 ? data.hrs.toFixed(2) + ' h' : data.count;
+            let rateTxt = '$' + (data.rate || 0).toFixed(2);
+            if(name === "PDA") { unitTxt = "F/N"; rateTxt = "Allow"; }
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><span class="badge ${data.css}" style="margin-right:10px">${name}</span></td>
+                <td>${unitTxt}</td>
+                <td>${rateTxt}</td>
+                <td class="amount">$${data.total.toFixed(2)}</td>
+            `;
+            tbody.appendChild(tr);
+            grandTotal += data.total;
+        }
+        document.getElementById('grossTotal').innerText = '$' + grandTotal.toFixed(2);
+    }
+
+    function copyToClipboard() {
+        let text = "NT MEDICAL PAYSLIP\n";
+        text += "Role: " + document.getElementById('roleSelector').value + "\n";
+        text += "-------------------------------------\n";
+        const rows = document.querySelectorAll('#payslipBody tr');
+        rows.forEach(row => {
+            const cols = row.querySelectorAll('td');
+            text += `${cols[0].innerText.padEnd(25)} | ${cols[3].innerText}\n`;
+        });
+        text += "-------------------------------------\n";
+        text += "TOTAL: " + document.getElementById('grossTotal').innerText;
+        navigator.clipboard.writeText(text).then(() => alert("Copied"));
+    }
+
+    init();
+</script>
+
+</body>
+</html>
